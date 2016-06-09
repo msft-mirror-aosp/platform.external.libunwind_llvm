@@ -46,12 +46,12 @@ enum {
 };
 
 struct unw_context_t {
-  uint64_t data[128];
+  uint64_t data[_LIBUNWIND_CONTEXT_SIZE];
 };
 typedef struct unw_context_t unw_context_t;
 
 struct unw_cursor_t {
-  uint64_t data[140];
+  uint64_t data[_LIBUNWIND_CURSOR_SIZE];
 };
 typedef struct unw_cursor_t unw_cursor_t;
 
@@ -495,6 +495,42 @@ enum {
   // 288-319 -- Reserved for VFP/Neon
   // 320-8191 -- Reserved
   // 8192-16383 -- Unspecified vendor co-processor register.
+};
+
+// OpenRISC1000 register numbers
+enum {
+  UNW_OR1K_R0  = 0,
+  UNW_OR1K_R1  = 1,
+  UNW_OR1K_R2  = 2,
+  UNW_OR1K_R3  = 3,
+  UNW_OR1K_R4  = 4,
+  UNW_OR1K_R5  = 5,
+  UNW_OR1K_R6  = 6,
+  UNW_OR1K_R7  = 7,
+  UNW_OR1K_R8  = 8,
+  UNW_OR1K_R9  = 9,
+  UNW_OR1K_R10 = 10,
+  UNW_OR1K_R11 = 11,
+  UNW_OR1K_R12 = 12,
+  UNW_OR1K_R13 = 13,
+  UNW_OR1K_R14 = 14,
+  UNW_OR1K_R15 = 15,
+  UNW_OR1K_R16 = 16,
+  UNW_OR1K_R17 = 17,
+  UNW_OR1K_R18 = 18,
+  UNW_OR1K_R19 = 19,
+  UNW_OR1K_R20 = 20,
+  UNW_OR1K_R21 = 21,
+  UNW_OR1K_R22 = 22,
+  UNW_OR1K_R23 = 23,
+  UNW_OR1K_R24 = 24,
+  UNW_OR1K_R25 = 25,
+  UNW_OR1K_R26 = 26,
+  UNW_OR1K_R27 = 27,
+  UNW_OR1K_R28 = 28,
+  UNW_OR1K_R29 = 29,
+  UNW_OR1K_R30 = 30,
+  UNW_OR1K_R31 = 31,
 };
 
 #endif

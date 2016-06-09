@@ -282,8 +282,8 @@ DEFINE_LIBUNWIND_PRIVATE_FUNCTION(_ZN9libunwind15Registers_arm646jumptoEv)
   ldp    x22,x23, [x0, #0x0B0]
   ldp    x24,x25, [x0, #0x0C0]
   ldp    x26,x27, [x0, #0x0D0]
-  ldp    x28,fp,  [x0, #0x0E0]
-  ldr    lr,      [x0, #0x100]  // restore pc into lr
+  ldp    x28,x29, [x0, #0x0E0]
+  ldr    x30,     [x0, #0x100]  // restore pc into lr
   ldr    x1,      [x0, #0x0F8]
   mov    sp,x1                  // restore sp
 
@@ -306,7 +306,7 @@ DEFINE_LIBUNWIND_PRIVATE_FUNCTION(_ZN9libunwind15Registers_arm646jumptoEv)
   ldr    d31,     [x0, #0x208]
 
   ldp    x0, x1,  [x0, #0x000]  // restore x0,x1
-  ret    lr                     // jump to pc
+  ret    x30                    // jump to pc
 
 #elif defined(__arm__) && !defined(__APPLE__)
 
@@ -426,5 +426,56 @@ DEFINE_LIBUNWIND_PRIVATE_FUNCTION(_ZN9libunwind13Registers_arm19restoreiWMMXCont
   ldc2 p1, cr11, [r0], #4  @ wldrw wCGR3, [r0], #4
 #endif
   JMP(lr)
+
+#elif defined(__or1k__)
+
+DEFINE_LIBUNWIND_PRIVATE_FUNCTION(_ZN9libunwind14Registers_or1k6jumptoEv)
+#
+# void libunwind::Registers_or1k::jumpto()
+#
+# On entry:
+#  thread_state pointer is in r3
+#
+
+  # restore integral registerrs
+  l.lwz     r0,  0(r3)
+  l.lwz     r1,  4(r3)
+  l.lwz     r2,  8(r3)
+  # skip r3 for now
+  l.lwz     r4, 16(r3)
+  l.lwz     r5, 20(r3)
+  l.lwz     r6, 24(r3)
+  l.lwz     r7, 28(r3)
+  l.lwz     r8, 32(r3)
+  l.lwz     r9, 36(r3)
+  l.lwz    r10, 40(r3)
+  l.lwz    r11, 44(r3)
+  l.lwz    r12, 48(r3)
+  l.lwz    r13, 52(r3)
+  l.lwz    r14, 56(r3)
+  l.lwz    r15, 60(r3)
+  l.lwz    r16, 64(r3)
+  l.lwz    r17, 68(r3)
+  l.lwz    r18, 72(r3)
+  l.lwz    r19, 76(r3)
+  l.lwz    r20, 80(r3)
+  l.lwz    r21, 84(r3)
+  l.lwz    r22, 88(r3)
+  l.lwz    r23, 92(r3)
+  l.lwz    r24, 96(r3)
+  l.lwz    r25,100(r3)
+  l.lwz    r26,104(r3)
+  l.lwz    r27,108(r3)
+  l.lwz    r28,112(r3)
+  l.lwz    r29,116(r3)
+  l.lwz    r30,120(r3)
+  l.lwz    r31,124(r3)
+
+  # at last, restore r3
+  l.lwz    r3,  12(r3)
+
+  # jump to pc
+  l.jr     r9
+   l.nop
 
 #endif

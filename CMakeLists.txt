@@ -41,7 +41,7 @@ if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     set(LLVM_INCLUDE_DIR ${INCLUDE_DIR} CACHE PATH "Path to llvm/include")
     set(LLVM_BINARY_DIR ${LLVM_OBJ_ROOT} CACHE PATH "Path to LLVM build tree")
     set(LLVM_MAIN_SRC_DIR ${MAIN_SRC_DIR} CACHE PATH "Path to LLVM source tree")
-    set(LLVM_CMAKE_PATH "${LLVM_BINARY_DIR}/share/llvm/cmake")
+    set(LLVM_CMAKE_PATH "${LLVM_BINARY_DIR}/lib${LLVM_LIBDIR_SUFFIX}/cmake/llvm")
     set(LLVM_LIT_PATH "${LLVM_PATH}/utils/lit/lit.py")
   else ()
     message(FATAL_ERROR "llvm-config not found and LLVM_MAIN_SRC_DIR not defined. "
@@ -103,6 +103,7 @@ option(LIBUNWIND_ENABLE_ASSERTIONS "Enable assertions independent of build mode.
 option(LIBUNWIND_ENABLE_PEDANTIC "Compile with pedantic enabled." ON)
 option(LIBUNWIND_ENABLE_WERROR "Fail and stop if a warning is triggered." OFF)
 option(LIBUNWIND_ENABLE_SHARED "Build libunwind as a shared library." ON)
+option(LIBUNWIND_ENABLE_CROSS_UNWINDING "Enable cross-platform unwinding support." ON)
 
 set(LIBUNWIND_GCC_TOOLCHAIN "" CACHE STRING "GCC toolchain for cross compiling.")
 set(LIBUNWIND_SYSROOT "" CACHE STRING "Sysroot for cross compiling.")
@@ -202,6 +203,11 @@ else()
   endif ()
 endif ()
 
+# Cross-unwinding
+if (NOT LIBUNWIND_ENABLE_CROSS_UNWINDING)
+  list(APPEND LIBUNWIND_COMPILE_FLAGS -D_LIBUNWIND_IS_NATIVE_ONLY)
+endif ()
+
 # This is the _ONLY_ place where add_definitions is called.
 if (MSVC)
   add_definitions(-D_CRT_SECURE_NO_WARNINGS)
@@ -221,4 +227,3 @@ append_if(LIBUNWIND_COMPILE_FLAGS LIBUNWIND_SYSROOT
 include_directories(include)
 
 add_subdirectory(src)
-
