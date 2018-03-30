@@ -38,6 +38,10 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := libunwind
 LOCAL_SRC_FILES := ../llvm-libc++/libs/$(TARGET_ARCH_ABI)/$(LOCAL_MODULE)$(TARGET_LIB_EXTENSION)
 LOCAL_EXPORT_C_INCLUDES := $(LOCAL_PATH)/include
+
+ifeq ($(NDK_PLATFORM_NEEDS_ANDROID_SUPPORT),true)
+    LOCAL_STATIC_LIBRARIES := android_support
+endif
 include $(PREBUILT_STATIC_LIBRARY)
 endif
 
@@ -50,6 +54,10 @@ LOCAL_C_INCLUDES := $(libcxxabi_includes)
 LOCAL_CFLAGS := -D__STDC_FORMAT_MACROS
 LOCAL_CPPFLAGS := -std=c++11
 LOCAL_EXPORT_C_INCLUDES := $(LOCAL_PATH)/include
+
+ifeq ($(NDK_PLATFORM_NEEDS_ANDROID_SUPPORT),true)
+    LOCAL_STATIC_LIBRARIES := android_support
+endif
 include $(BUILD_STATIC_LIBRARY)
 
 endif # Prebuilt/building
