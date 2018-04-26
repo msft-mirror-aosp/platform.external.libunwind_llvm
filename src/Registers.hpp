@@ -87,7 +87,7 @@ private:
 };
 
 inline Registers_x86::Registers_x86(const void *registers) {
-  static_assert(check_fit<Registers_x86, unw_context_t>::does_fit,
+  static_assert((check_fit<Registers_x86, unw_context_t>::does_fit),
                 "x86 registers do not fit into unw_context_t");
   memcpy(&_registers, registers, sizeof(_registers));
 }
@@ -122,9 +122,17 @@ inline uint32_t Registers_x86::getRegister(int regNum) const {
     return _registers.__edx;
   case UNW_X86_EBX:
     return _registers.__ebx;
-  case UNW_X86_EBP:
-    return _registers.__ebp;
+#if !defined(__APPLE__)
   case UNW_X86_ESP:
+#else
+  case UNW_X86_EBP:
+#endif
+    return _registers.__ebp;
+#if !defined(__APPLE__)
+  case UNW_X86_EBP:
+#else
+  case UNW_X86_ESP:
+#endif
     return _registers.__esp;
   case UNW_X86_ESI:
     return _registers.__esi;
@@ -154,10 +162,18 @@ inline void Registers_x86::setRegister(int regNum, uint32_t value) {
   case UNW_X86_EBX:
     _registers.__ebx = value;
     return;
+#if !defined(__APPLE__)
+  case UNW_X86_ESP:
+#else
   case UNW_X86_EBP:
+#endif
     _registers.__ebp = value;
     return;
+#if !defined(__APPLE__)
+  case UNW_X86_EBP:
+#else
   case UNW_X86_ESP:
+#endif
     _registers.__esp = value;
     return;
   case UNW_X86_ESI:
@@ -281,7 +297,7 @@ private:
 };
 
 inline Registers_x86_64::Registers_x86_64(const void *registers) {
-  static_assert(check_fit<Registers_x86_64, unw_context_t>::does_fit,
+  static_assert((check_fit<Registers_x86_64, unw_context_t>::does_fit),
                 "x86_64 registers do not fit into unw_context_t");
   memcpy(&_registers, registers, sizeof(_registers));
 }
@@ -548,7 +564,7 @@ private:
 };
 
 inline Registers_ppc::Registers_ppc(const void *registers) {
-  static_assert(check_fit<Registers_ppc, unw_context_t>::does_fit,
+  static_assert((check_fit<Registers_ppc, unw_context_t>::does_fit),
                 "ppc registers do not fit into unw_context_t");
   memcpy(&_registers, static_cast<const uint8_t *>(registers),
          sizeof(_registers));
@@ -1078,7 +1094,7 @@ private:
 };
 
 inline Registers_arm64::Registers_arm64(const void *registers) {
-  static_assert(check_fit<Registers_arm64, unw_context_t>::does_fit,
+  static_assert((check_fit<Registers_arm64, unw_context_t>::does_fit),
                 "arm64 registers do not fit into unw_context_t");
   memcpy(&_registers, registers, sizeof(_registers));
   static_assert(sizeof(GPRs) == 0x110,
@@ -1343,10 +1359,12 @@ public:
     }
     if (_saved_vfp_d16_d31)
       restoreVFPv3(_vfp_d16_d31);
+#if defined(__ARM_WMMX)
     if (_saved_iwmmx)
       restoreiWMMX(_iwmmx);
     if (_saved_iwmmx_control)
       restoreiWMMXControl(_iwmmx_control);
+#endif
   }
 
 private:
@@ -1360,13 +1378,15 @@ private:
   static void saveVFPWithFSTMD(unw_fpreg_t*);
   static void saveVFPWithFSTMX(unw_fpreg_t*);
   static void saveVFPv3(unw_fpreg_t*);
-  static void saveiWMMX(unw_fpreg_t*);
-  static void saveiWMMXControl(uint32_t*);
   static void restoreVFPWithFLDMD(unw_fpreg_t*);
   static void restoreVFPWithFLDMX(unw_fpreg_t*);
   static void restoreVFPv3(unw_fpreg_t*);
+#if defined(__ARM_WMMX)
+  static void saveiWMMX(unw_fpreg_t*);
+  static void saveiWMMXControl(uint32_t*);
   static void restoreiWMMX(unw_fpreg_t*);
   static void restoreiWMMXControl(uint32_t*);
+#endif
   void restoreCoreAndJumpTo();
 
   // ARM registers
@@ -1384,47 +1404,53 @@ private:
   bool _saved_vfp_d0_d15;
   // Whether VFPv3 D16-D31 are saved.
   bool _saved_vfp_d16_d31;
-  // Whether iWMMX data registers are saved.
-  bool _saved_iwmmx;
-  // Whether iWMMX control registers are saved.
-  bool _saved_iwmmx_control;
   // VFP registers D0-D15, + padding if saved using FSTMX
   unw_fpreg_t _vfp_d0_d15_pad[17];
   // VFPv3 registers D16-D31, always saved using FSTMD
   unw_fpreg_t _vfp_d16_d31[16];
+#if defined(__ARM_WMMX)
+  // Whether iWMMX data registers are saved.
+  bool _saved_iwmmx;
+  // Whether iWMMX control registers are saved.
+  bool _saved_iwmmx_control;
   // iWMMX registers
   unw_fpreg_t _iwmmx[16];
   // iWMMX control registers
   uint32_t _iwmmx_control[4];
+#endif
 };
 
 inline Registers_arm::Registers_arm(const void *registers)
   : _use_X_for_vfp_save(false),
     _saved_vfp_d0_d15(false),
-    _saved_vfp_d16_d31(false),
-    _saved_iwmmx(false),
-    _saved_iwmmx_control(false) {
-  static_assert(check_fit<Registers_arm, unw_context_t>::does_fit,
+    _saved_vfp_d16_d31(false) {
+  static_assert((check_fit<Registers_arm, unw_context_t>::does_fit),
                 "arm registers do not fit into unw_context_t");
   // See unw_getcontext() note about data.
   memcpy(&_registers, registers, sizeof(_registers));
   memset(&_vfp_d0_d15_pad, 0, sizeof(_vfp_d0_d15_pad));
   memset(&_vfp_d16_d31, 0, sizeof(_vfp_d16_d31));
+#if defined(__ARM_WMMX)
+  _saved_iwmmx = false;
+  _saved_iwmmx_control = false;
   memset(&_iwmmx, 0, sizeof(_iwmmx));
   memset(&_iwmmx_control, 0, sizeof(_iwmmx_control));
+#endif
 }
 
 inline Registers_arm::Registers_arm()
   : _use_X_for_vfp_save(false),
     _saved_vfp_d0_d15(false),
-    _saved_vfp_d16_d31(false),
-    _saved_iwmmx(false),
-    _saved_iwmmx_control(false) {
+    _saved_vfp_d16_d31(false) {
   memset(&_registers, 0, sizeof(_registers));
   memset(&_vfp_d0_d15_pad, 0, sizeof(_vfp_d0_d15_pad));
   memset(&_vfp_d16_d31, 0, sizeof(_vfp_d16_d31));
+#if defined(__ARM_WMMX)
+  _saved_iwmmx = false;
+  _saved_iwmmx_control = false;  
   memset(&_iwmmx, 0, sizeof(_iwmmx));
   memset(&_iwmmx_control, 0, sizeof(_iwmmx_control));
+#endif
 }
 
 inline bool Registers_arm::validRegister(int regNum) const {
@@ -1432,24 +1458,35 @@ inline bool Registers_arm::validRegister(int regNum) const {
   // virtual register set (VRS).
   if (regNum == UNW_REG_IP)
     return true;
+
   if (regNum == UNW_REG_SP)
     return true;
+
   if (regNum >= UNW_ARM_R0 && regNum <= UNW_ARM_R15)
     return true;
+
+#if defined(__ARM_WMMX)
   if (regNum >= UNW_ARM_WC0 && regNum <= UNW_ARM_WC3)
     return true;
+#endif
+
   return false;
 }
 
 inline uint32_t Registers_arm::getRegister(int regNum) {
   if (regNum == UNW_REG_SP || regNum == UNW_ARM_SP)
     return _registers.__sp;
+
   if (regNum == UNW_ARM_LR)
     return _registers.__lr;
+
   if (regNum == UNW_REG_IP || regNum == UNW_ARM_IP)
     return _registers.__pc;
+
   if (regNum >= UNW_ARM_R0 && regNum <= UNW_ARM_R12)
     return _registers.__r[regNum];
+
+#if defined(__ARM_WMMX)
   if (regNum >= UNW_ARM_WC0 && regNum <= UNW_ARM_WC3) {
     if (!_saved_iwmmx_control) {
       _saved_iwmmx_control = true;
@@ -1457,26 +1494,44 @@ inline uint32_t Registers_arm::getRegister(int regNum) {
     }
     return _iwmmx_control[regNum - UNW_ARM_WC0];
   }
+#endif
+
   _LIBUNWIND_ABORT("unsupported arm register");
 }
 
 inline void Registers_arm::setRegister(int regNum, uint32_t value) {
-  if (regNum == UNW_REG_SP || regNum == UNW_ARM_SP)
+  if (regNum == UNW_REG_SP || regNum == UNW_ARM_SP) {
     _registers.__sp = value;
-  else if (regNum == UNW_ARM_LR)
+    return;
+  }
+
+  if (regNum == UNW_ARM_LR) {
     _registers.__lr = value;
-  else if (regNum == UNW_REG_IP || regNum == UNW_ARM_IP)
+    return;
+  }
+
+  if (regNum == UNW_REG_IP || regNum == UNW_ARM_IP) {
     _registers.__pc = value;
-  else if (regNum >= UNW_ARM_R0 && regNum <= UNW_ARM_R12)
+    return;
+  }
+
+  if (regNum >= UNW_ARM_R0 && regNum <= UNW_ARM_R12) {
     _registers.__r[regNum] = value;
-  else if (regNum >= UNW_ARM_WC0 && regNum <= UNW_ARM_WC3) {
+    return;
+  }
+
+#if defined(__ARM_WMMX)
+  if (regNum >= UNW_ARM_WC0 && regNum <= UNW_ARM_WC3) {
     if (!_saved_iwmmx_control) {
       _saved_iwmmx_control = true;
       saveiWMMXControl(_iwmmx_control);
     }
     _iwmmx_control[regNum - UNW_ARM_WC0] = value;
-  } else
-    _LIBUNWIND_ABORT("unsupported arm register");
+    return;
+  }
+#endif
+
+  _LIBUNWIND_ABORT("unsupported arm register");
 }
 
 inline const char *Registers_arm::getRegisterName(int regNum) {
@@ -1652,7 +1707,10 @@ inline bool Registers_arm::validFloatRegister(int regNum) const {
   // NOTE: Consider the intel MMX registers floating points so the
   // unw_get_fpreg can be used to transmit the 64-bit data back.
   return ((regNum >= UNW_ARM_D0) && (regNum <= UNW_ARM_D31))
-      || ((regNum >= UNW_ARM_WR0) && (regNum <= UNW_ARM_WR15));
+#if defined(__ARM_WMMX)
+      || ((regNum >= UNW_ARM_WR0) && (regNum <= UNW_ARM_WR15))
+#endif
+      ;
 }
 
 inline unw_fpreg_t Registers_arm::getFloatRegister(int regNum) {
@@ -1665,21 +1723,27 @@ inline unw_fpreg_t Registers_arm::getFloatRegister(int regNum) {
         saveVFPWithFSTMD(_vfp_d0_d15_pad);
     }
     return _vfp_d0_d15_pad[regNum - UNW_ARM_D0];
-  } else if (regNum >= UNW_ARM_D16 && regNum <= UNW_ARM_D31) {
+  }
+
+  if (regNum >= UNW_ARM_D16 && regNum <= UNW_ARM_D31) {
     if (!_saved_vfp_d16_d31) {
       _saved_vfp_d16_d31 = true;
       saveVFPv3(_vfp_d16_d31);
     }
     return _vfp_d16_d31[regNum - UNW_ARM_D16];
-  } else if (regNum >= UNW_ARM_WR0 && regNum <= UNW_ARM_WR15) {
+  }
+
+#if defined(__ARM_WMMX)
+  if (regNum >= UNW_ARM_WR0 && regNum <= UNW_ARM_WR15) {
     if (!_saved_iwmmx) {
       _saved_iwmmx = true;
       saveiWMMX(_iwmmx);
     }
     return _iwmmx[regNum - UNW_ARM_WR0];
-  } else {
-    _LIBUNWIND_ABORT("Unknown ARM float register");
   }
+#endif
+
+  _LIBUNWIND_ABORT("Unknown ARM float register");
 }
 
 inline void Registers_arm::setFloatRegister(int regNum, unw_fpreg_t value) {
@@ -1692,21 +1756,30 @@ inline void Registers_arm::setFloatRegister(int regNum, unw_fpreg_t value) {
         saveVFPWithFSTMD(_vfp_d0_d15_pad);
     }
     _vfp_d0_d15_pad[regNum - UNW_ARM_D0] = value;
-  } else if (regNum >= UNW_ARM_D16 && regNum <= UNW_ARM_D31) {
+    return;
+  }
+
+  if (regNum >= UNW_ARM_D16 && regNum <= UNW_ARM_D31) {
     if (!_saved_vfp_d16_d31) {
       _saved_vfp_d16_d31 = true;
       saveVFPv3(_vfp_d16_d31);
     }
     _vfp_d16_d31[regNum - UNW_ARM_D16] = value;
-  } else if (regNum >= UNW_ARM_WR0 && regNum <= UNW_ARM_WR15) {
+    return;
+  }
+
+#if defined(__ARM_WMMX)
+  if (regNum >= UNW_ARM_WR0 && regNum <= UNW_ARM_WR15) {
     if (!_saved_iwmmx) {
       _saved_iwmmx = true;
       saveiWMMX(_iwmmx);
     }
     _iwmmx[regNum - UNW_ARM_WR0] = value;
-  } else {
-    _LIBUNWIND_ABORT("Unknown ARM float register");
+    return;
   }
+#endif
+
+  _LIBUNWIND_ABORT("Unknown ARM float register");
 }
 
 inline bool Registers_arm::validVectorRegister(int) const {
@@ -1758,7 +1831,7 @@ private:
 };
 
 inline Registers_or1k::Registers_or1k(const void *registers) {
-  static_assert(check_fit<Registers_or1k, unw_context_t>::does_fit,
+  static_assert((check_fit<Registers_or1k, unw_context_t>::does_fit),
                 "or1k registers do not fit into unw_context_t");
   memcpy(&_registers, static_cast<const uint8_t *>(registers),
          sizeof(_registers));

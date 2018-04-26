@@ -6,7 +6,7 @@
 // Source Licenses. See LICENSE.TXT for details.
 //
 //
-//  Defines macros used within libuwind project.
+//  Defines macros used within libunwind project.
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,6 +16,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 // Define static_assert() unless already defined by compiler.
@@ -61,13 +62,14 @@
 #define _LIBUNWIND_BUILD_SJLJ_APIS 0
 #endif
 
-#if defined(__i386__) || defined(__x86_64__)
+#if defined(__i386__) || defined(__x86_64__) || defined(__ppc__) || defined(__ppc64__)
 #define _LIBUNWIND_SUPPORT_FRAME_APIS 1
 #else
 #define _LIBUNWIND_SUPPORT_FRAME_APIS 0
 #endif
 
 #if defined(__i386__) || defined(__x86_64__) ||                                \
+    defined(__ppc__) || defined(__ppc64__) ||                                  \
     (!defined(__APPLE__) && defined(__arm__)) ||                               \
     (defined(__arm64__) || defined(__aarch64__)) ||                            \
     (defined(__APPLE__) && defined(__mips__))
@@ -76,6 +78,12 @@
 #define _LIBUNWIND_BUILD_ZERO_COST_APIS 0
 #endif
 
+#if defined(NDEBUG) && defined(_LIBUNWIND_IS_BAREMETAL)
+#define _LIBUNWIND_ABORT(msg)                                                  \
+  do {                                                                         \
+    abort();                                                                   \
+  } while (0)
+#else
 #define _LIBUNWIND_ABORT(msg)                                                  \
   do {                                                                         \
     fprintf(stderr, "libunwind: %s %s:%d - %s\n", __func__, __FILE__,          \
@@ -83,40 +91,67 @@
     fflush(stderr);                                                            \
     abort();                                                                   \
   } while (0)
-#define _LIBUNWIND_LOG(msg, ...) fprintf(stderr, "libuwind: " msg, __VA_ARGS__)
+#endif
+
+#if defined(NDEBUG) && defined(_LIBUNWIND_IS_BAREMETAL)
+#define _LIBUNWIND_LOG(msg, ...)
+#else
+#define _LIBUNWIND_LOG(msg, ...)                                               \
+  fprintf(stderr, "libunwind: " msg "\n", __VA_ARGS__)
+#endif
+
+#if defined(_LIBUNWIND_HAS_NO_THREADS)
+  // only used with pthread calls, not needed for the single-threaded builds
+  #define _LIBUNWIND_LOG_NON_ZERO(x)
+#else
+  #if defined(NDEBUG)
+    #define _LIBUNWIND_LOG_NON_ZERO(x) x
+  #else
+    #define _LIBUNWIND_LOG_NON_ZERO(x)                                         \
+      do {                                                                     \
+        int _err = x;                                                          \
+        if (_err != 0)                                                         \
+          _LIBUNWIND_LOG("" #x "=%d in %s", _err, __FUNCTION__);               \
+      } while (0)
+  #endif
+#endif
 
 // Macros that define away in non-Debug builds
 #ifdef NDEBUG
   #define _LIBUNWIND_DEBUG_LOG(msg, ...)
   #define _LIBUNWIND_TRACE_API(msg, ...)
-  #define _LIBUNWIND_TRACING_UNWINDING 0
+  #define _LIBUNWIND_TRACING_UNWINDING (0)
+  #define _LIBUNWIND_TRACING_DWARF (0)
   #define _LIBUNWIND_TRACE_UNWINDING(msg, ...)
-  #define _LIBUNWIND_LOG_NON_ZERO(x) x
+  #define _LIBUNWIND_TRACE_DWARF(...)
 #else
   #ifdef __cplusplus
     extern "C" {
   #endif
     extern  bool logAPIs();
     extern  bool logUnwinding();
+    extern  bool logDWARF();
   #ifdef __cplusplus
     }
   #endif
   #define _LIBUNWIND_DEBUG_LOG(msg, ...)  _LIBUNWIND_LOG(msg, __VA_ARGS__)
-  #define _LIBUNWIND_LOG_NON_ZERO(x) \
-            do { \
-              int _err = x; \
-              if ( _err != 0 ) \
-                _LIBUNWIND_LOG("" #x "=%d in %s", _err, __FUNCTION__); \
-             } while (0)
-  #define _LIBUNWIND_TRACE_API(msg, ...) \
-            do { \
-              if ( logAPIs() ) _LIBUNWIND_LOG(msg, __VA_ARGS__); \
-            } while(0)
-  #define _LIBUNWIND_TRACE_UNWINDING(msg, ...) \
-            do { \
-              if ( logUnwinding() ) _LIBUNWIND_LOG(msg, __VA_ARGS__); \
-            } while(0)
+  #define _LIBUNWIND_TRACE_API(msg, ...)                                       \
+    do {                                                                       \
+      if (logAPIs())                                                           \
+        _LIBUNWIND_LOG(msg, __VA_ARGS__);                                      \
+    } while (0)
   #define _LIBUNWIND_TRACING_UNWINDING logUnwinding()
+  #define _LIBUNWIND_TRACING_DWARF logDWARF()
+  #define _LIBUNWIND_TRACE_UNWINDING(msg, ...)                                 \
+    do {                                                                       \
+      if (logUnwinding())                                                      \
+        _LIBUNWIND_LOG(msg, __VA_ARGS__);                                      \
+    } while (0)
+  #define _LIBUNWIND_TRACE_DWARF(...)                                          \
+    do {                                                                       \
+      if (logDWARF())                                                          \
+        fprintf(stderr, __VA_ARGS__);                                          \
+    } while (0)
 #endif
 
 #ifdef __cplusplus
@@ -131,7 +166,7 @@ template <typename _Type, typename _Mem>
 struct check_fit {
   template <typename T>
   struct blk_count {
-    static const uint32_t count =
+    static const size_t count =
       (sizeof(T) + sizeof(uint64_t) - 1) / sizeof(uint64_t);
   };
   static const bool does_fit =
