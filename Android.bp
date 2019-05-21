@@ -53,6 +53,7 @@ cc_library_static {
     sdk_version: "21",
     vendor_available: true,
     recovery_available: true,
+    native_bridge_supported: true,
     srcs: LIBUNWIND_SRC_FILES,
     include_dirs: LIBUNWIND_INCLUDES,
     local_include_dirs: LIBUNWIND_LOCAL_INCLUDES,
