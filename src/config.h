@@ -1,9 +1,8 @@
 //===----------------------------- config.h -------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //
 //  Defines macros used within libunwind project.
@@ -32,50 +31,57 @@
 // Platform specific configuration defines.
 #ifdef __APPLE__
   #if defined(FOR_DYLD)
-    #define _LIBUNWIND_SUPPORT_COMPACT_UNWIND 1
-    #define _LIBUNWIND_SUPPORT_DWARF_UNWIND   0
-    #define _LIBUNWIND_SUPPORT_DWARF_INDEX    0
+    #define _LIBUNWIND_SUPPORT_COMPACT_UNWIND
   #else
-    #define _LIBUNWIND_SUPPORT_COMPACT_UNWIND 1
+    #define _LIBUNWIND_SUPPORT_COMPACT_UNWIND
     #define _LIBUNWIND_SUPPORT_DWARF_UNWIND   1
-    #define _LIBUNWIND_SUPPORT_DWARF_INDEX    0
+  #endif
+#elif defined(_WIN32)
+  #ifdef __SEH__
+    #define _LIBUNWIND_SUPPORT_SEH_UNWIND 1
+  #else
+    #define _LIBUNWIND_SUPPORT_DWARF_UNWIND 1
   #endif
 #else
   #if defined(__ARM_DWARF_EH__) || !defined(__arm__)
-    #define _LIBUNWIND_SUPPORT_COMPACT_UNWIND 0
     #define _LIBUNWIND_SUPPORT_DWARF_UNWIND 1
     #define _LIBUNWIND_SUPPORT_DWARF_INDEX 1
-  #else
-    #define _LIBUNWIND_SUPPORT_COMPACT_UNWIND 0
-    #define _LIBUNWIND_SUPPORT_DWARF_UNWIND 0
-    #define _LIBUNWIND_SUPPORT_DWARF_INDEX 0
   #endif
 #endif
 
-// FIXME: these macros are not correct for COFF targets
-#define _LIBUNWIND_EXPORT __attribute__((visibility("default")))
-#define _LIBUNWIND_HIDDEN __attribute__((visibility("hidden")))
-
-#if (defined(__APPLE__) && defined(__arm__)) || defined(__USING_SJLJ_EXCEPTIONS__)
-#define _LIBUNWIND_BUILD_SJLJ_APIS 1
+#if defined(_LIBUNWIND_DISABLE_VISIBILITY_ANNOTATIONS)
+  #define _LIBUNWIND_EXPORT
+  #define _LIBUNWIND_HIDDEN
 #else
-#define _LIBUNWIND_BUILD_SJLJ_APIS 0
+  #if !defined(__ELF__) && !defined(__MACH__)
+    #define _LIBUNWIND_EXPORT __declspec(dllexport)
+    #define _LIBUNWIND_HIDDEN
+  #else
+    #define _LIBUNWIND_EXPORT __attribute__((visibility("default")))
+    #define _LIBUNWIND_HIDDEN __attribute__((visibility("hidden")))
+  #endif
 #endif
 
-#if defined(__i386__) || defined(__x86_64__) || defined(__ppc__) || defined(__ppc64__)
-#define _LIBUNWIND_SUPPORT_FRAME_APIS 1
-#else
-#define _LIBUNWIND_SUPPORT_FRAME_APIS 0
+#if (defined(__APPLE__) && defined(__arm__)) || defined(__USING_SJLJ_EXCEPTIONS__)
+#define _LIBUNWIND_BUILD_SJLJ_APIS
+#endif
+
+#if defined(__i386__) || defined(__x86_64__) || defined(__ppc__) || defined(__ppc64__) || defined(__powerpc64__)
+#define _LIBUNWIND_SUPPORT_FRAME_APIS
 #endif
 
 #if defined(__i386__) || defined(__x86_64__) ||                                \
-    defined(__ppc__) || defined(__ppc64__) ||                                  \
+    defined(__ppc__) || defined(__ppc64__) || defined(__powerpc64__) ||        \
     (!defined(__APPLE__) && defined(__arm__)) ||                               \
     (defined(__arm64__) || defined(__aarch64__)) ||                            \
-    (defined(__APPLE__) && defined(__mips__))
-#define _LIBUNWIND_BUILD_ZERO_COST_APIS 1
-#else
-#define _LIBUNWIND_BUILD_ZERO_COST_APIS 0
+    defined(__mips__)
+#if !defined(_LIBUNWIND_BUILD_SJLJ_APIS)
+#define _LIBUNWIND_BUILD_ZERO_COST_APIS
+#endif
+#endif
+
+#if defined(__powerpc64__) && defined(_ARCH_PWR8)
+#define PPC64_HAS_VMX
 #endif
 
 #if defined(NDEBUG) && defined(_LIBUNWIND_IS_BAREMETAL)
@@ -94,26 +100,24 @@
 #endif
 
 #if defined(NDEBUG) && defined(_LIBUNWIND_IS_BAREMETAL)
+#define _LIBUNWIND_LOG0(msg)
 #define _LIBUNWIND_LOG(msg, ...)
 #else
+#define _LIBUNWIND_LOG0(msg)                                               \
+  fprintf(stderr, "libunwind: " msg "\n")
 #define _LIBUNWIND_LOG(msg, ...)                                               \
   fprintf(stderr, "libunwind: " msg "\n", __VA_ARGS__)
 #endif
 
-#if defined(_LIBUNWIND_HAS_NO_THREADS)
-  // only used with pthread calls, not needed for the single-threaded builds
-  #define _LIBUNWIND_LOG_NON_ZERO(x)
+#if defined(NDEBUG)
+  #define _LIBUNWIND_LOG_IF_FALSE(x) x
 #else
-  #if defined(NDEBUG)
-    #define _LIBUNWIND_LOG_NON_ZERO(x) x
-  #else
-    #define _LIBUNWIND_LOG_NON_ZERO(x)                                         \
-      do {                                                                     \
-        int _err = x;                                                          \
-        if (_err != 0)                                                         \
-          _LIBUNWIND_LOG("" #x "=%d in %s", _err, __FUNCTION__);               \
-      } while (0)
-  #endif
+  #define _LIBUNWIND_LOG_IF_FALSE(x)                                           \
+    do {                                                                       \
+      bool _ret = x;                                                           \
+      if (!_ret)                                                               \
+        _LIBUNWIND_LOG("" #x " failed in %s", __FUNCTION__);                   \
+    } while (0)
 #endif
 
 // Macros that define away in non-Debug builds
@@ -160,7 +164,7 @@
 #if defined(_LIBUNWIND_IS_NATIVE_ONLY)
 # define COMP_OP ==
 #else
-# define COMP_OP <
+# define COMP_OP <=
 #endif
 template <typename _Type, typename _Mem>
 struct check_fit {

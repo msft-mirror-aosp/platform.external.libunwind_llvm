@@ -1,9 +1,8 @@
 //===------------------------ libunwind_ext.h -----------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //
 //  Extensions to libunwind API.
@@ -33,7 +32,7 @@ extern void unw_iterate_dwarf_unwind_cache(void (*func)(unw_word_t ip_start,
 extern void _unw_add_dynamic_fde(unw_word_t fde);
 extern void _unw_remove_dynamic_fde(unw_word_t fde);
 
-#if _LIBUNWIND_ARM_EHABI
+#if defined(_LIBUNWIND_ARM_EHABI)
 extern const uint32_t* decode_eht_entry(const uint32_t*, size_t*, size_t*);
 extern _Unwind_Reason_Code _Unwind_VRS_Interpret(_Unwind_Context *context,
                                                  const uint32_t *data,
