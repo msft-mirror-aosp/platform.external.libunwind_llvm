@@ -61,6 +61,8 @@ cc_library_static {
     cflags: LIBUNWIND_CFLAGS,
     cppflags: LIBUNWIND_CPPFLAGS,
     stl: "none",
+    system_shared_libs: [],
+    header_libs: ["libc_headers"],
     sanitize: {
         never: true,
     },
