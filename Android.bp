@@ -53,6 +53,7 @@ cc_library_static {
     name: "libunwind_llvm",
     sdk_version: "21",
     vendor_available: true,
+    ramdisk_available: true,
     recovery_available: true,
     native_bridge_supported: true,
     srcs: LIBUNWIND_SRC_FILES,
@@ -61,6 +62,8 @@ cc_library_static {
     cflags: LIBUNWIND_CFLAGS,
     cppflags: LIBUNWIND_CPPFLAGS,
     stl: "none",
+    system_shared_libs: [],
+    header_libs: ["libc_headers"],
     sanitize: {
         never: true,
     },
