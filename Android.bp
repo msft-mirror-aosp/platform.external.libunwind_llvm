@@ -47,6 +47,7 @@ LIBUNWIND_CPPFLAGS = [
     "-Wno-unused-function",
     "-Wno-unused-parameter",
     "-Wno-unused-local-typedef",
+    "-Wno-bitwise-conditional-parentheses", // in src/UnwindCursor.hpp:1437
 ]
 
 cc_library_static {
