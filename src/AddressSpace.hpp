@@ -29,13 +29,6 @@
 #include <dlfcn.h>
 #endif
 
-#if defined(_LIBUNWIND_ARM_EHABI)
-struct EHABIIndexEntry {
-  uint32_t functionOffset;
-  uint32_t data;
-};
-#endif
-
 #ifdef __APPLE__
 #include <mach-o/getsect.h>
 namespace libunwind {
@@ -466,13 +459,12 @@ inline bool LocalAddressSpace::findUnwindSections(pint_t targetAddr,
   (void)targetAddr;
   (void)info;
   return true;
-#elif defined(_LIBUNWIND_ARM_EHABI) && defined(__BIONIC__)
-  // For ARM EHABI, Bionic didn't implement dl_iterate_phdr until API 21. After
-  // API 21, dl_iterate_phdr exists, but dl_unwind_find_exidx is much faster.
+#elif defined(_LIBUNWIND_ARM_EHABI) && defined(__BIONIC__) &&                  \
+    (__ANDROID_API__ < 21)
   int length = 0;
   info.arm_section =
       (uintptr_t)dl_unwind_find_exidx((_Unwind_Ptr)targetAddr, &length);
-  info.arm_section_length = (uintptr_t)length * sizeof(EHABIIndexEntry);
+  info.arm_section_length = (uintptr_t)length;
   if (info.arm_section && info.arm_section_length)
     return true;
 #elif defined(_LIBUNWIND_ARM_EHABI) || defined(_LIBUNWIND_SUPPORT_DWARF_UNWIND)
